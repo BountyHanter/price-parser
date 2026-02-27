@@ -97,3 +97,4 @@ uvicorn app.main:app --reload
 
 ### Работа со схемами
 Для каждого эндпоинта описывайте входные и выходные данные в `app/schemas.py`, используя `Pydantic`. Это обеспечит автоматическую валидацию и генерацию документации Swagger.
+playwright install chromium
