@@ -74,7 +74,7 @@ Environment=PORT=${PORT}
 Environment=PYTHONUNBUFFERED=1
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
-ExecStart=${PROJECT_DIR}/.venv/bin/uvicorn main:app --host 0.0.0.0 --port \${PORT}
+ExecStart=/var/www/Denis/price-parser/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
 Restart=always
 RestartSec=3
 
