@@ -14,9 +14,3 @@ async def get_session():
 
 class Base(AsyncAttrs, DeclarativeBase):
     __abstract__ = True
-
-
-async def init_db():
-    from app.models.data import ParseJob
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)

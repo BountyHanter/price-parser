@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Мониторинг парсинга</title>
+
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,.06);
+      --panel-2: rgba(255,255,255,.08);
+      --stroke: rgba(255,255,255,.12);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.65);
+      --muted2: rgba(255,255,255,.45);
+
+      --accent: #60a5fa;
+      --accent2: #22c55e;
+      --warn: #fbbf24;
+      --danger: #ef4444;
+
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --shadow2: 0 10px 25px rgba(0,0,0,.25);
+
+      --r: 16px;
+      --r2: 12px;
+
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    /* light mode (optional toggle) */
+    [data-theme="light"]{
+      --bg: #f4f6f9;
+      --panel: rgba(255,255,255,.85);
+      --panel-2: rgba(255,255,255,.95);
+      --stroke: rgba(15, 23, 42, .12);
+      --text: rgba(15, 23, 42, .92);
+      --muted: rgba(15, 23, 42, .65);
+      --muted2: rgba(15, 23, 42, .45);
+
+      --shadow: 0 20px 60px rgba(15, 23, 42, .15);
+      --shadow2: 0 10px 25px rgba(15, 23, 42, .12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(900px 600px at 20% 10%, rgba(96,165,250,.18), transparent 60%),
+        radial-gradient(700px 500px at 85% 15%, rgba(34,197,94,.12), transparent 55%),
+        radial-gradient(600px 450px at 60% 90%, rgba(251,191,36,.10), transparent 55%),
+        var(--bg);
+      overflow: hidden; /* чтобы не было “простыни” */
+    }
+
+    /* Layout */
+    .app{
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    /* Top sticky header */
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      padding: 14px 18px;
+      background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,0));
+      backdrop-filter: blur(14px);
+    }
+    [data-theme="light"] .topbar{
+      background: linear-gradient(to bottom, rgba(255,255,255,.75), rgba(255,255,255,0));
+    }
+
+    .topbar-inner{
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      background: var(--panel);
+      box-shadow: var(--shadow2);
+      padding: 14px 14px;
+    }
+
+    .row{
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .title{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 260px;
+    }
+    .logo{
+      width: 34px; height: 34px;
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(96,165,250,.95), rgba(96,165,250,.25)),
+        radial-gradient(circle at 70% 70%, rgba(34,197,94,.9), rgba(34,197,94,.18));
+      box-shadow: 0 10px 20px rgba(96,165,250,.18);
+      border: 1px solid var(--stroke);
+    }
+    .title h1{
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: .2px;
+      line-height: 1.15;
+    }
+    .subtitle{
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dot{
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .dot.ok{ background: var(--accent2); }
+    .dot.run{ background: var(--warn); }
+    .dot.err{ background: var(--danger); }
+
+    .spacer{ flex: 1; }
+
+    .btn{
+      appearance: none;
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform .12s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight: 600;
+      font-size: 13px;
+      user-select:none;
+      box-shadow: 0 6px 18px rgba(0,0,0,.12);
+    }
+    .btn:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.22); }
+    [data-theme="light"] .btn:hover{ border-color: rgba(15, 23, 42, .22); }
+    .btn:active{ transform: translateY(0); }
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(96,165,250,.95), rgba(96,165,250,.55));
+      border-color: rgba(96,165,250,.55);
+      color: rgba(5, 10, 20, .95);
+    }
+    .btn.primary:hover{ border-color: rgba(96,165,250,.85); }
+    .btn.danger{
+      background: linear-gradient(135deg, rgba(239,68,68,.95), rgba(239,68,68,.55));
+      border-color: rgba(239,68,68,.55);
+      color: rgba(10, 5, 5, .95);
+    }
+    .btn:disabled{
+      opacity: .55;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none;
+    }
+
+    .toggle{
+      display:flex; align-items:center; gap:10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+      user-select:none;
+    }
+    .switch{
+      width: 42px; height: 24px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.08);
+      position: relative;
+      cursor: pointer;
+    }
+    [data-theme="light"] .switch{ background: rgba(15,23,42,.06); }
+    .knob{
+      width: 18px; height: 18px;
+      border-radius: 999px;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      left: 3px;
+      background: rgba(255,255,255,.85);
+      transition: left .18s ease;
+    }
+    [data-theme="light"] .knob{ background: rgba(15,23,42,.82); }
+    .switch.on .knob{ left: 21px; }
+
+    /* Main content */
+    .content{
+      padding: 14px 18px 18px 18px;
+      overflow: hidden;
+    }
+
+    .grid{
+      height: 100%;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 1100px){
+      body{ overflow:auto; }
+      .content{ overflow: visible; }
+      .grid{
+        height: auto;
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card{
+      border: 1px solid var(--stroke);
+      border-radius: var(--r);
+      background: var(--panel);
+      box-shadow: var(--shadow2);
+      overflow: hidden;
+    }
+    .card-header{
+      padding: 14px 14px 10px 14px;
+      border-bottom: 1px solid var(--stroke);
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .card-title{
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: .2px;
+    }
+    .card-sub{
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .card-body{ padding: 14px; }
+
+    /* Left column blocks */
+    .stack{ display:grid; gap: 14px; }
+
+    .filebox{
+      display:grid;
+      gap: 10px;
+    }
+    input[type="file"]{
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px dashed var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    [data-theme="light"] input[type="file"]{
+      background: rgba(15,23,42,.03);
+    }
+
+    .actions{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .notice{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-size: 12px;
+      display:flex;
+      align-items:flex-start;
+      gap: 10px;
+    }
+    [data-theme="light"] .notice{ background: rgba(15,23,42,.03); }
+    .notice b{ color: var(--text); }
+    .notice .icon{
+      width: 18px; height: 18px;
+      flex: 0 0 18px;
+      opacity: .9;
+      margin-top: 1px;
+    }
+
+    /* Overview */
+    .overview{
+      display:grid;
+      grid-template-columns: 150px 1fr;
+      gap: 14px;
+      align-items:center;
+    }
+    .kpis{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .kpi{
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .kpi .label{
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+      display:flex;
+      align-items:center;
+      gap: 8px;
+    }
+    .kpi .value{
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+    .mini{
+      margin-top: 8px;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      color: var(--muted2);
+      font-size: 11px;
+    }
+
+    /* Donut */
+    .donut-wrap{
+      position: relative;
+      width: 150px;
+      height: 150px;
+      display:grid;
+      place-items:center;
+    }
+    .donut-center{
+      position: absolute;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      gap: 2px;
+    }
+    .donut-center .pct{
+      font-family: var(--mono);
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: .2px;
+    }
+    .donut-center .cap{
+      color: var(--muted);
+      font-size: 11px;
+    }
+    svg{ display:block; }
+
+    /* Right column - Sites */
+    .sites{
+      height: 100%;
+      display:grid;
+      grid-template-rows: auto auto 1fr;
+      overflow: hidden;
+    }
+
+    .toolbar{
+      padding: 12px 14px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,.03);
+    }
+    [data-theme="light"] .toolbar{ background: rgba(15,23,42,.02); }
+
+    .input{
+      flex: 1;
+      min-width: 240px;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: var(--muted);
+    }
+    .input input{
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .select{
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .chip{
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select:none;
+      transition: transform .12s ease, opacity .2s ease;
+      display:flex;
+      align-items:center;
+      gap: 8px;
+    }
+    .chip:hover{ transform: translateY(-1px); }
+    .chip.on{
+      color: rgba(5, 10, 20, .95);
+      background: linear-gradient(135deg, rgba(96,165,250,.95), rgba(96,165,250,.55));
+      border-color: rgba(96,165,250,.55);
+    }
+
+    .sites-scroll{
+      overflow: auto;
+      padding: 14px;
+      height: 100%;
+    }
+
+    .sites-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 1300px){
+      .sites-grid{ grid-template-columns: 1fr; }
+    }
+
+    .site{
+      border: 1px solid var(--stroke);
+      background: var(--panel-2);
+      border-radius: var(--r);
+      overflow: hidden;
+      transition: transform .15s ease, border-color .2s ease;
+      will-change: transform;
+    }
+    .site:hover{
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,.22);
+    }
+    [data-theme="light"] .site:hover{
+      border-color: rgba(15,23,42,.22);
+    }
+
+    .site-head{
+      padding: 12px 12px 10px 12px;
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--stroke);
+      cursor: pointer;
+      user-select:none;
+    }
+    .site-name{
+      margin: 0;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      line-height: 1.2;
+    }
+    .site-meta{
+      margin-top: 4px;
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .badge{
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    [data-theme="light"] .badge{ background: rgba(15,23,42,.03); }
+
+    .b-ok{ border-color: rgba(34,197,94,.35); }
+    .b-run{ border-color: rgba(251,191,36,.35); }
+    .b-err{ border-color: rgba(239,68,68,.35); }
+
+    .site-right{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+
+    .mini-ring{
+      width: 42px;
+      height: 42px;
+      position: relative;
+      display:grid;
+      place-items:center;
+    }
+    .mini-ring .t{
+      position:absolute;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text);
+      font-weight: 900;
+    }
+
+    .site-body{
+      padding: 12px;
+      display:none;
+    }
+    .site.open .site-body{ display:block; }
+
+    .bars{
+      display:grid;
+      gap: 8px;
+    }
+    .barline{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      gap: 10px;
+    }
+    .bar{
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+    }
+    [data-theme="light"] .bar{ background: rgba(15,23,42,.04); }
+    .bar > i{
+      display:block;
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(96,165,250,.9), rgba(34,197,94,.85));
+      transition: width .45s ease;
+    }
+
+    .cols{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .box{
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.04);
+    }
+    [data-theme="light"] .box{ background: rgba(15,23,42,.03); }
+    .box .l{ color: var(--muted); font-size: 12px; }
+    .box .v{ font-family: var(--mono); font-weight: 900; font-size: 15px; margin-top: 6px; }
+
+    .errmsg{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(239,68,68,.25);
+      background: rgba(239,68,68,.08);
+      color: rgba(255,255,255,.86);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    [data-theme="light"] .errmsg{
+      color: rgba(15,23,42,.9);
+      background: rgba(239,68,68,.10);
+    }
+
+    /* Compact mode */
+    .compact .cols{ grid-template-columns: 1fr 1fr; }
+    .compact .box:nth-child(3){ display:none; }
+    .compact .site-body{ padding: 10px; }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 999;
+      display:grid;
+      gap: 10px;
+      pointer-events:none;
+    }
+    .toast .t{
+      pointer-events:none;
+      max-width: 420px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,.45);
+      color: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow2);
+      transform: translateY(10px);
+      opacity: 0;
+      animation: pop .28s ease forwards;
+      display:flex;
+      align-items:flex-start;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    [data-theme="light"] .toast .t{
+      background: rgba(255,255,255,.85);
+      color: rgba(15,23,42,.92);
+    }
+    @keyframes pop{
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast .t small{ color: var(--muted); display:block; margin-top: 4px; }
+    .toast .t.ok{ border-color: rgba(34,197,94,.35); }
+    .toast .t.err{ border-color: rgba(239,68,68,.35); }
+    .toast .t.inf{ border-color: rgba(96,165,250,.35); }
+
+    /* Tiny sparkline */
+    .spark{
+      width: 100%;
+      height: 46px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,.04);
+      overflow:hidden;
+      margin-top: 10px;
+      padding: 8px 10px;
+    }
+    [data-theme="light"] .spark{ background: rgba(15,23,42,.03); }
+
+    /* Helpers */
+    .muted{ color: var(--muted); }
+    .mono{ font-family: var(--mono); }
+    .right{ text-align:right; }
+  </style>
+</head>
+
+<body data-theme="dark">
+  <div class="app">
+
+    <!-- TOP -->
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="row">
+          <div class="title">
+            <div class="logo"></div>
+            <div>
+              <h1>Мониторинг парсинга</h1>
+              <p class="subtitle" id="subTitle">обновление каждые 3 сек</p>
+            </div>
+          </div>
+
+          <div class="pill" title="Состояние автообновления">
+            <span class="dot" id="refreshDot"></span>
+            <span id="refreshText">ожидание данных…</span>
+          </div>
+
+          <div class="pill" title="Последнее обновление">
+            <span class="mono" id="lastUpdate">—</span>
+          </div>
+
+          <div class="spacer"></div>
+
+          <div class="toggle" title="Тёмная/светлая тема">
+            <span>Тема</span>
+            <div class="switch" id="themeSwitch"><div class="knob"></div></div>
+          </div>
+
+          <div class="toggle" title="Автообновление">
+            <span>Auto</span>
+            <div class="switch on" id="autoSwitch"><div class="knob"></div></div>
+          </div>
+
+          <button class="btn" id="refreshNowBtn" title="Обновить сейчас">
+            ⟳ <span>Обновить</span>
+          </button>
+
+          <button class="btn danger" id="clearHistoryBtn" title="Сбросить историю графика (localStorage)">
+            ✕ <span>Сброс</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="content">
+      <div class="grid">
+
+        <!-- LEFT -->
+        <div class="stack">
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-title">Excel и управление</p>
+                <p class="card-sub">загрузка / запуск / скачивание</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="filebox">
+                <input type="file" id="excelFile" accept=".xlsx,.xls" />
+                <div class="actions">
+                  <button class="btn" id="uploadBtn">⬆︎ Загрузить</button>
+                  <button class="btn primary" id="startBtn">▶ Запустить</button>
+                  <button class="btn" id="downloadBtn">⬇︎ Скачать результат</button>
+                </div>
+                <div class="hint">
+                  Подсказка: кнопки сами блокируются, если парсер уже в работе или результат ещё не готов.
+                </div>
+
+                <div class="notice" id="globalMessage" style="display:none;">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 9v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M12 17h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M10.3 4.3h3.4c.7 0 1.3.4 1.6 1l6 12c.6 1.2-.3 2.7-1.6 2.7H4c-1.3 0-2.2-1.5-1.6-2.7l6-12c.3-.6.9-1 1.9-1Z"
+                          stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  </svg>
+                  <div>
+                    <b id="msgTitle">Сообщение</b>
+                    <div id="msgText" class="muted">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-title">Сводка</p>
+                <p class="card-sub">общий прогресс, KPI и история</p>
+              </div>
+              <div class="pill" title="Формула прогресса">
+                <span class="mono">(успех + ошибки) / всего</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="overview">
+
+                <div class="donut-wrap">
+                  <svg width="150" height="150" viewBox="0 0 120 120">
+                    <defs>
+                      <filter id="glow">
+                        <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                        <feMerge>
+                          <feMergeNode in="coloredBlur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    <circle cx="60" cy="60" r="45" stroke="rgba(255,255,255,.12)" stroke-width="12" fill="none"></circle>
+                    <circle id="donutArc"
+                            cx="60" cy="60" r="45"
+                            stroke="rgba(96,165,250,.95)"
+                            stroke-width="12"
+                            stroke-linecap="round"
+                            fill="none"
+                            stroke-dasharray="0 999"
+                            transform="rotate(-90 60 60)"
+                            filter="url(#glow)"></circle>
+                  </svg>
+
+                  <div class="donut-center">
+                    <div class="pct" id="overallPct">0%</div>
+                    <div class="cap">прогресс</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="kpis">
+                    <div class="kpi">
+                      <div class="label">Сайтов</div>
+                      <div class="value" id="kSites">—</div>
+                      <div class="mini"><span>в работе</span><span class="mono" id="kRunning">—</span></div>
+                    </div>
+                    <div class="kpi">
+                      <div class="label">Всего задач</div>
+                      <div class="value" id="kTotal">—</div>
+                      <div class="mini"><span>осталось</span><span class="mono" id="kLeft">—</span></div>
+                    </div>
+                    <div class="kpi">
+                      <div class="label">Успешно</div>
+                      <div class="value" id="kOk">—</div>
+                      <div class="mini"><span>ошибок</span><span class="mono" id="kErr">—</span></div>
+                    </div>
+                    <div class="kpi">
+                      <div class="label">Скорость</div>
+                      <div class="value" id="kSpeed">—</div>
+                      <div class="mini"><span>за 60 сек</span><span class="mono" id="kSpeedSub">—</span></div>
+                    </div>
+                  </div>
+
+                  <div class="spark" title="История прогресса (локально, localStorage)">
+                    <svg id="sparkSvg" width="100%" height="100%" viewBox="0 0 300 30" preserveAspectRatio="none">
+                      <polyline id="sparkLine" fill="none" stroke="rgba(34,197,94,.85)" stroke-width="2" points=""></polyline>
+                      <polyline id="sparkFill" fill="rgba(34,197,94,.14)" stroke="none" points=""></polyline>
+                      <line x1="0" y1="29" x2="300" y2="29" stroke="rgba(255,255,255,.10)"></line>
+                    </svg>
+                  </div>
+                  <div class="mini">
+                    <span class="muted">Последние точки: <span class="mono" id="histCount">0</span></span>
+                    <span class="muted">Δ прогресс: <span class="mono" id="histDelta">—</span></span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT -->
+        <div class="card sites" id="sitesCard">
+          <div class="card-header">
+            <div>
+              <p class="card-title">Сайты</p>
+              <p class="card-sub">поиск, фильтры, сортировка, детали</p>
+            </div>
+            <div class="pill">
+              <span class="mono" id="sitesCounter">0</span>
+              <span class="muted">показано</span>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <div class="input" title="Поиск по названию сайта">
+              🔎 <input id="searchInput" placeholder="Поиск по сайтам…" />
+            </div>
+
+            <select class="select" id="sortSelect" title="Сортировка">
+              <option value="status">Сортировать: статус</option>
+              <option value="errors">Сортировать: ошибки</option>
+              <option value="progress">Сортировать: прогресс</option>
+              <option value="name">Сортировать: имя</option>
+            </select>
+
+            <div class="chip" id="chipRunning" title="Показать только те, что в работе">🟡 В работе</div>
+            <div class="chip" id="chipErrors" title="Показать только те, где есть ошибки">🔴 С ошибками</div>
+            <div class="chip" id="chipCompact" title="Компактный режим карточек">📦 Компактно</div>
+          </div>
+
+          <div class="sites-scroll">
+            <div class="sites-grid" id="sitesGrid"></div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Toasts -->
+    <div class="toast" id="toast"></div>
+
+  </div>
+
+  <script>
+    /* =========================
+       Config
+    ========================== */
+    const ENDPOINTS = {
+      status: "/parser/status",
+      upload: "/excel/upload",
+      start: "/parser/start",
+      download: "/excel/download",
+    };
+
+    const REFRESH_MS = 3000;
+    const HISTORY_KEY = "parser_monitor_history_v1"; // localStorage
+    const HISTORY_MAX = 160; // точек
+    const SPEED_WINDOW_SEC = 60;
+
+    /* =========================
+       State
+    ========================== */
+    let autoRefresh = true;
+    let refreshTimer = null;
+
+    let lastData = null;
+    let lastSummary = null;
+
+    // for speed calc
+    let processedTimeline = []; // {t, done} where done = processed+errors
+
+    /* =========================
+       Utils
+    ========================== */
+    const $ = (id) => document.getElementById(id);
+
+    function nowStr(){
+      const d = new Date();
+      return d.toLocaleTimeString("ru-RU", {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+    }
+
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+    function safeNum(v){ return Number.isFinite(+v) ? +v : 0; }
+
+    function formatInt(n){
+      return new Intl.NumberFormat("ru-RU").format(n);
+    }
+
+    function statusMeta(status){
+      // mapping under your API: running / finished / created / failed / pending
+      switch(status){
+        case "running": return {label:"В работе", cls:"b-run", dot:"run"};
+        case "created": return {label:"Готово", cls:"b-ok", dot:"ok"};
+        case "finished": return {label:"Завершено", cls:"b-ok", dot:"ok"};
+        case "failed": return {label:"Ошибка", cls:"b-err", dot:"err"};
+        case "pending": return {label:"Ожидание", cls:"", dot:""};
+        default: return {label: String(status || "—"), cls:"", dot:""};
+      }
+    }
+
+    function toast(type, title, text){
+      const wrap = $("toast");
+      const el = document.createElement("div");
+      el.className = "t " + (type || "inf");
+      el.innerHTML = `
+        <div style="font-size:16px;line-height:1;">${type === "ok" ? "✅" : type === "err" ? "⛔" : "ℹ️"}</div>
+        <div>
+          <div style="font-weight:900">${escapeHtml(title || "")}</div>
+          <small>${escapeHtml(text || "")}</small>
+        </div>
+      `;
+      wrap.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(10px)";
+        setTimeout(() => el.remove(), 220);
+      }, 2400);
+    }
+
+    function showInlineMessage(type, title, text){
+      const box = $("globalMessage");
+      $("msgTitle").textContent = title || "Сообщение";
+      $("msgText").textContent = text || "";
+      box.style.display = "flex";
+      box.style.borderColor =
+        type === "ok" ? "rgba(34,197,94,.35)" :
+        type === "err" ? "rgba(239,68,68,.35)" :
+        "rgba(96,165,250,.35)";
+      box.style.background =
+        type === "ok" ? "rgba(34,197,94,.08)" :
+        type === "err" ? "rgba(239,68,68,.08)" :
+        "rgba(96,165,250,.08)";
+      setTimeout(() => { box.style.display = "none"; }, 3500);
+    }
+
+    function escapeHtml(s){
+      return String(s)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    /* =========================
+       Theme / switches
+    ========================== */
+    function setSwitch(el, on){
+      if(on) el.classList.add("on"); else el.classList.remove("on");
+    }
+
+    function initSwitches(){
+      // theme
+      const themeSwitch = $("themeSwitch");
+      const savedTheme = localStorage.getItem("parser_theme") || "dark";
+      document.body.setAttribute("data-theme", savedTheme);
+      setSwitch(themeSwitch, savedTheme === "light");
+
+      themeSwitch.addEventListener("click", () => {
+        const cur = document.body.getAttribute("data-theme");
+        const next = cur === "dark" ? "light" : "dark";
+        document.body.setAttribute("data-theme", next);
+        localStorage.setItem("parser_theme", next);
+        setSwitch(themeSwitch, next === "light");
+      });
+
+      // auto
+      const autoSwitchEl = $("autoSwitch");
+      setSwitch(autoSwitchEl, true);
+
+      autoSwitchEl.addEventListener("click", () => {
+        autoRefresh = !autoRefresh;
+        setSwitch(autoSwitchEl, autoRefresh);
+        $("subTitle").textContent = autoRefresh ? `обновление каждые ${REFRESH_MS/1000} сек` : "автообновление выключено";
+        if(autoRefresh) startAuto(); else stopAuto();
+      });
+    }
+
+    /* =========================
+       History (localStorage)
+    ========================== */
+    function readHistory(){
+      try{
+        const raw = localStorage.getItem(HISTORY_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      }catch{
+        return [];
+      }
+    }
+
+    function writeHistory(arr){
+      try{
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(-HISTORY_MAX)));
+      }catch{}
+    }
+
+    function pushHistory(point){
+      const arr = readHistory();
+      arr.push(point);
+      writeHistory(arr);
+    }
+
+    function clearHistory(){
+      localStorage.removeItem(HISTORY_KEY);
+      renderSparkline([]);
+      $("histCount").textContent = "0";
+      $("histDelta").textContent = "—";
+      processedTimeline = [];
+      $("kSpeed").textContent = "—";
+      $("kSpeedSub").textContent = "—";
+      toast("ok", "История сброшена", "График прогресса очищен (localStorage).");
+    }
+
+    function renderSparkline(history){
+      const svg = $("sparkSvg");
+      const line = $("sparkLine");
+      const fill = $("sparkFill");
+
+      const w = 300, h = 30;
+      const pad = 2;
+      const n = history.length;
+
+      if(!n){
+        line.setAttribute("points", "");
+        fill.setAttribute("points", "");
+        return;
+      }
+
+      // points are percent 0..100
+      const pts = history.map((p, i) => {
+        const x = (i / Math.max(1, n-1)) * (w - pad*2) + pad;
+        const y = (1 - clamp(p.pct/100,0,1)) * (h - pad*2) + pad;
+        return [x.toFixed(2), y.toFixed(2)];
+      });
+
+      const poly = pts.map(([x,y]) => `${x},${y}`).join(" ");
+      line.setAttribute("points", poly);
+
+      // fill to bottom
+      const polyFill = `${pad},${h-pad} ${poly} ${w-pad},${h-pad}`;
+      fill.setAttribute("points", polyFill);
+
+      $("histCount").textContent = String(n);
+
+      if(n >= 2){
+        const delta = history[n-1].pct - history[n-2].pct;
+        const sign = delta > 0 ? "+" : "";
+        $("histDelta").textContent = `${sign}${delta}%`;
+      }else{
+        $("histDelta").textContent = "—";
+      }
+    }
+
+    /* =========================
+       Animation helpers
+    ========================== */
+    function animateNumber(el, from, to, suffix = "", duration = 450){
+      from = safeNum(from); to = safeNum(to);
+      const start = performance.now();
+      const diff = to - from;
+
+      function tick(t){
+        const p = clamp((t - start) / duration, 0, 1);
+        // easeOutCubic
+        const e = 1 - Math.pow(1 - p, 3);
+        const v = from + diff * e;
+        el.textContent = `${Math.round(v)}${suffix}`;
+        if(p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function animateInt(el, from, to, duration = 450){
+      from = safeNum(from); to = safeNum(to);
+      const start = performance.now();
+      const diff = to - from;
+
+      function tick(t){
+        const p = clamp((t - start) / duration, 0, 1);
+        const e = 1 - Math.pow(1 - p, 3);
+        const v = from + diff * e;
+        el.textContent = formatInt(Math.round(v));
+        if(p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function setDonutPercent(pct){
+      pct = clamp(pct, 0, 100);
+      const r = 45;
+      const c = 2 * Math.PI * r;
+      const filled = (pct / 100) * c;
+      $("donutArc").setAttribute("stroke-dasharray", `${filled.toFixed(1)} ${c.toFixed(1)}`);
+    }
+
+    /* =========================
+       API actions
+    ========================== */
+    async function uploadFile(){
+      const fileInput = $("excelFile");
+      if(!fileInput.files.length){
+        toast("err", "Файл не выбран", "Выбери Excel перед загрузкой.");
+        showInlineMessage("err", "Ошибка", "Выберите файл Excel (.xlsx/.xls)");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      try{
+        toast("inf", "Загрузка…", "Отправляю файл на сервер.");
+        const response = await fetch(ENDPOINTS.upload, { method:"POST", body: formData });
+        const data = await response.json().catch(() => ({}));
+
+        if(!response.ok) throw new Error(data.detail || "Ошибка загрузки");
+
+        toast("ok", "Загружено", "Excel успешно загружен.");
+        showInlineMessage("ok", "Успех", "Файл успешно загружен");
+        await loadStatus(true);
+
+      }catch(e){
+        toast("err", "Ошибка загрузки", e.message);
+        showInlineMessage("err", "Ошибка", e.message);
+      }
+    }
+
+    async function startParser(){
+      try{
+        toast("inf", "Запуск…", "Пытаюсь запустить парсер.");
+        const response = await fetch(ENDPOINTS.start, { method:"POST" });
+        const data = await response.json().catch(() => ({}));
+
+        if(!response.ok) throw new Error(data.detail || "Ошибка запуска");
+
+        toast("ok", "Парсер запущен", "Статус обновится автоматически.");
+        showInlineMessage("ok", "Успех", "Парсер запущен");
+        await loadStatus(true);
+
+      }catch(e){
+        toast("err", "Не удалось запустить", e.message);
+        showInlineMessage("err", "Ошибка", e.message);
+      }
+    }
+
+    async function downloadFile(){
+      try{
+        toast("inf", "Проверка…", "Запрашиваю файл результата.");
+        const response = await fetch(ENDPOINTS.download, { cache: "no-store" });
+
+        if(!response.ok){
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.detail || "Ошибка скачивания");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "result.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        toast("ok", "Скачано", "Файл result.xlsx скачан.");
+        showInlineMessage("ok", "Успех", "Файл скачан");
+
+      }catch(e){
+        toast("err", "Ошибка скачивания", e.message);
+        showInlineMessage("err", "Ошибка", e.message);
+      }
+    }
+
+    /* =========================
+       Status rendering
+    ========================== */
+    function computeSummary(data){
+      let totalAll = 0;
+      let processedAll = 0;
+      let errorsAll = 0;
+      let runningCount = 0;
+
+      for(const site of data){
+        totalAll += safeNum(site.total_items);
+        processedAll += safeNum(site.processed_items);
+        errorsAll += safeNum(site.error_items);
+
+        if(site.status === "running") runningCount++;
+      }
+
+      const doneAll = processedAll + errorsAll;
+      const leftAll = Math.max(0, totalAll - doneAll);
+
+      const percent = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
+
+      return { totalAll, processedAll, errorsAll, doneAll, leftAll, runningCount, percent };
+    }
+
+    function updateTopStatus(summary){
+      const dot = $("refreshDot");
+      const text = $("refreshText");
+
+      if(!summary){
+        dot.className = "dot";
+        text.textContent = "ожидание данных…";
+        return;
+      }
+
+      if(summary.runningCount > 0){
+        dot.className = "dot run";
+        text.textContent = `в работе: ${summary.runningCount}`;
+      }else if(summary.errorsAll > 0){
+        dot.className = "dot err";
+        text.textContent = `ошибок: ${summary.errorsAll}`;
+      }else{
+        dot.className = "dot ok";
+        text.textContent = "готово";
+      }
+    }
+
+    function updateButtons(data){
+      const running = data.some(s => s.status === "running");
+      // как и у тебя: download только когда все created (если твоя логика такая)
+      const allCreated = data.length > 0 && data.every(s => s.status === "created");
+
+      $("startBtn").disabled = running;
+      $("downloadBtn").disabled = !allCreated;
+    }
+
+    function updateSummaryUI(summary, forceNoAnim=false){
+      // donut + percent animate
+      const prevPct = lastSummary?.percent ?? 0;
+      if(forceNoAnim){
+        $("overallPct").textContent = `${summary.percent}%`;
+      }else{
+        animateNumber($("overallPct"), prevPct, summary.percent, "%", 550);
+      }
+      setDonutPercent(summary.percent);
+
+      // KPIs
+      const prev = lastSummary || {};
+      if(forceNoAnim){
+        $("kSites").textContent = formatInt(summary.sitesCount || 0);
+        $("kRunning").textContent = formatInt(summary.runningCount);
+        $("kTotal").textContent = formatInt(summary.totalAll);
+        $("kLeft").textContent = formatInt(summary.leftAll);
+        $("kOk").textContent = formatInt(summary.processedAll);
+        $("kErr").textContent = formatInt(summary.errorsAll);
+      }else{
+        animateInt($("kSites"), prev.sitesCount || 0, summary.sitesCount || 0);
+        animateInt($("kRunning"), prev.runningCount || 0, summary.runningCount);
+        animateInt($("kTotal"), prev.totalAll || 0, summary.totalAll);
+        animateInt($("kLeft"), prev.leftAll || 0, summary.leftAll);
+        animateInt($("kOk"), prev.processedAll || 0, summary.processedAll);
+        animateInt($("kErr"), prev.errorsAll || 0, summary.errorsAll);
+      }
+
+      updateTopStatus(summary);
+    }
+
+    function updateSpeed(summary){
+      // speed based on doneAll (processed+errors)
+      const t = Date.now();
+      processedTimeline.push({ t, done: summary.doneAll });
+
+      // keep window
+      const minT = t - SPEED_WINDOW_SEC * 1000;
+      processedTimeline = processedTimeline.filter(p => p.t >= minT);
+
+      if(processedTimeline.length < 2){
+        $("kSpeed").textContent = "—";
+        $("kSpeedSub").textContent = "—";
+        return;
+      }
+
+      const first = processedTimeline[0];
+      const last = processedTimeline[processedTimeline.length - 1];
+      const dt = (last.t - first.t) / 1000;
+      const dd = last.done - first.done;
+      const perMin = dt > 0 ? (dd / dt) * 60 : 0;
+
+      // show
+      $("kSpeed").textContent = `${perMin.toFixed(1)}/мин`;
+      $("kSpeedSub").textContent = `${dd} задач`;
+    }
+
+    function miniRingSvg(pct){
+      pct = clamp(pct, 0, 100);
+      const r = 16, c = 2 * Math.PI * r;
+      const filled = (pct / 100) * c;
+      return `
+        <svg width="42" height="42" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="${r}" stroke="rgba(255,255,255,.14)" stroke-width="6" fill="none"></circle>
+          <circle cx="22" cy="22" r="${r}"
+                  stroke="rgba(96,165,250,.95)"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  fill="none"
+                  stroke-dasharray="${filled.toFixed(1)} ${c.toFixed(1)}"
+                  transform="rotate(-90 22 22)"></circle>
+        </svg>
+      `;
+    }
+
+    function renderSites(data){
+      const grid = $("sitesGrid");
+
+      // toolbar state
+      const q = $("searchInput").value.trim().toLowerCase();
+      const onlyRunning = $("chipRunning").classList.contains("on");
+      const onlyErrors = $("chipErrors").classList.contains("on");
+      const compact = $("chipCompact").classList.contains("on");
+      $("sitesCard").classList.toggle("compact", compact);
+
+      // filter
+      let list = data.slice();
+
+      if(q){
+        list = list.filter(s => String(s.site_name || "").toLowerCase().includes(q));
+      }
+      if(onlyRunning){
+        list = list.filter(s => s.status === "running");
+      }
+      if(onlyErrors){
+        list = list.filter(s => safeNum(s.error_items) > 0 || s.status === "failed");
+      }
+
+      // sort
+      const sort = $("sortSelect").value;
+      const orderStatus = (st) => {
+        // running first, failed, pending, finished/created
+        if(st === "running") return 0;
+        if(st === "failed") return 1;
+        if(st === "pending") return 2;
+        if(st === "finished") return 3;
+        if(st === "created") return 4;
+        return 9;
+      };
+
+      list.sort((a,b) => {
+        if(sort === "errors"){
+          return safeNum(b.error_items) - safeNum(a.error_items);
+        }
+        if(sort === "progress"){
+          const ap = a.total_items > 0 ? ((safeNum(a.processed_items)+safeNum(a.error_items)) / safeNum(a.total_items)) : 0;
+          const bp = b.total_items > 0 ? ((safeNum(b.processed_items)+safeNum(b.error_items)) / safeNum(b.total_items)) : 0;
+          return bp - ap;
+        }
+        if(sort === "name"){
+          return String(a.site_name || "").localeCompare(String(b.site_name || ""), "ru");
+        }
+        // status
+        return orderStatus(a.status) - orderStatus(b.status);
+      });
+
+      $("sitesCounter").textContent = String(list.length);
+
+      // preserve open state
+      const openSet = new Set();
+      grid.querySelectorAll(".site.open").forEach(el => openSet.add(el.dataset.name));
+
+      grid.innerHTML = "";
+
+      for(const site of list){
+        const total = safeNum(site.total_items);
+        const ok = safeNum(site.processed_items);
+        const err = safeNum(site.error_items);
+        const done = ok + err;
+        const left = Math.max(0, total - done);
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+        const st = statusMeta(site.status);
+
+        const el = document.createElement("div");
+        el.className = "site";
+        el.dataset.name = String(site.site_name || "");
+
+        if(openSet.has(el.dataset.name)) el.classList.add("open");
+
+        el.innerHTML = `
+          <div class="site-head">
+            <div style="min-width:0;">
+              <div class="site-name">${escapeHtml(site.site_name || "—")}</div>
+              <div class="site-meta">
+                <span class="badge ${st.cls}"><span class="dot ${st.dot}"></span> ${escapeHtml(st.label)}</span>
+                <span class="badge">✅ <span class="mono">${formatInt(ok)}</span></span>
+                <span class="badge">⛔ <span class="mono">${formatInt(err)}</span></span>
+                <span class="badge">⏳ <span class="mono">${formatInt(left)}</span></span>
+                <span class="badge">∑ <span class="mono">${formatInt(total)}</span></span>
+              </div>
+            </div>
+            <div class="site-right">
+              <div class="mini-ring">
+                ${miniRingSvg(pct)}
+                <div class="t">${pct}%</div>
+              </div>
+              <div class="badge" title="Нажми, чтобы развернуть">▾</div>
+            </div>
+          </div>
+
+          <div class="site-body">
+            <div class="bars">
+              <div class="barline">
+                <span>Прогресс</span>
+                <span class="mono">${pct}%</span>
+              </div>
+              <div class="bar"><i style="width:${pct}%"></i></div>
+            </div>
+
+            <div class="cols">
+              <div class="box">
+                <div class="l">Успешно</div>
+                <div class="v">${formatInt(ok)}</div>
+              </div>
+              <div class="box">
+                <div class="l">Ошибки</div>
+                <div class="v">${formatInt(err)}</div>
+              </div>
+              <div class="box">
+                <div class="l">Осталось</div>
+                <div class="v">${formatInt(left)}</div>
+              </div>
+            </div>
+
+            ${site.error_message ? `<div class="errmsg"><b>Последняя ошибка:</b><br>${escapeHtml(site.error_message)}</div>` : ""}
+          </div>
+        `;
+
+        el.querySelector(".site-head").addEventListener("click", () => {
+          el.classList.toggle("open");
+        });
+
+        grid.appendChild(el);
+      }
+    }
+
+    /* =========================
+       Main loader
+    ========================== */
+    async function loadStatus(forceNoAnim=false){
+      try{
+        const response = await fetch(ENDPOINTS.status, { cache: "no-store" });
+        const data = await response.json();
+
+        if(!Array.isArray(data)) throw new Error("Некорректный формат статуса");
+
+        $("lastUpdate").textContent = nowStr();
+
+        const summary = computeSummary(data);
+        summary.sitesCount = data.length;
+
+        // history for sparkline
+        pushHistory({ t: Date.now(), pct: summary.percent });
+        const history = readHistory();
+        renderSparkline(history);
+
+        updateSummaryUI(summary, forceNoAnim);
+        updateSpeed(summary);
+
+        renderSites(data);
+        updateButtons(data);
+
+        lastData = data;
+        lastSummary = summary;
+
+        return true;
+
+      }catch(e){
+        $("lastUpdate").textContent = nowStr();
+        const dot = $("refreshDot");
+        dot.className = "dot err";
+        $("refreshText").textContent = "ошибка статуса";
+        toast("err", "Ошибка получения статуса", e.message || "Не удалось получить данные.");
+        return false;
+      }
+    }
+
+    /* =========================
+       Auto refresh
+    ========================== */
+    function startAuto(){
+      stopAuto();
+      refreshTimer = setInterval(() => {
+        if(autoRefresh) loadStatus(false);
+      }, REFRESH_MS);
+    }
+
+    function stopAuto(){
+      if(refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+
+    /* =========================
+       Filters / UI events
+    ========================== */
+    function initToolbar(){
+      $("searchInput").addEventListener("input", () => { if(lastData) renderSites(lastData); });
+      $("sortSelect").addEventListener("change", () => { if(lastData) renderSites(lastData); });
+
+      $("chipRunning").addEventListener("click", () => {
+        $("chipRunning").classList.toggle("on");
+        if(lastData) renderSites(lastData);
+      });
+      $("chipErrors").addEventListener("click", () => {
+        $("chipErrors").classList.toggle("on");
+        if(lastData) renderSites(lastData);
+      });
+      $("chipCompact").addEventListener("click", () => {
+        $("chipCompact").classList.toggle("on");
+        if(lastData) renderSites(lastData);
+      });
+    }
+
+    function initButtons(){
+      $("uploadBtn").addEventListener("click", uploadFile);
+      $("startBtn").addEventListener("click", startParser);
+      $("downloadBtn").addEventListener("click", downloadFile);
+
+      $("refreshNowBtn").addEventListener("click", () => loadStatus(true));
+      $("clearHistoryBtn").addEventListener("click", clearHistory);
+    }
+
+    /* =========================
+       Boot
+    ========================== */
+    (function boot(){
+      initSwitches();
+      initToolbar();
+      initButtons();
+
+      $("subTitle").textContent = `обновление каждые ${REFRESH_MS/1000} сек`;
+      loadStatus(true);
+      startAuto();
+    })();
+  </script>
+</body>
+</html>

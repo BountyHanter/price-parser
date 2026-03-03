@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 from app.parser.memory_form import build_memory_structure
 from app.parser.schema import Task, SITES
@@ -43,6 +44,7 @@ def read_tasks_from_excel(
             url_col = cols["url_col"]
             price_col = cols["price_col"]
 
+
             val = ws.cell(row=row, column=url_col).value
             if not _is_url(val):
                 continue
@@ -56,18 +58,11 @@ def read_tasks_from_excel(
                     url_col=url_col,
                     price_col=price_col,
                     url=url,
+                    price_cell=f"{get_column_letter(price_col)}{row}"
                 )
             )
 
     return tasks
-
-
-def create_result_copy(template_path: str, result_path: str):
-    template = Path(template_path)
-    result = Path(result_path)
-
-    shutil.copyfile(template, result)
-    return result
 
 
 if __name__ == "__main__":

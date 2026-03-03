@@ -19,3 +19,4 @@ class Task:
     url_col: int
     price_col: int
     url: str
+    price_cell: str

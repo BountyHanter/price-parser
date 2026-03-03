@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 from openpyxl import load_workbook
 
@@ -6,7 +7,7 @@ from app.parser.schema import Task
 NAME_COL = 2  # Наименование (вторая колонка)
 
 
-def build_memory_structure(xlsx_path: str, tasks: list[Task]) -> dict[str, Any]:
+def build_memory_structure(xlsx_path: str | Path, tasks: list[Task]) -> dict[str, Any]:
     wb = load_workbook(xlsx_path, data_only=True)
     ws = wb.worksheets[0]
 

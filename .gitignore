@@ -173,3 +173,5 @@ cython_debug/
 
 app/migration/versions/*
 !app/migration/versions/.gitkeep
+/storage
+/app/parser/draft*
