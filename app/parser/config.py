@@ -12,8 +12,8 @@ class HttpConfig:
 
 @dataclass(frozen=True)
 class DelayConfig:
-    min_delay: float = 2.0
-    max_delay: float = 4.0
+    min_delay: float = 5.0
+    max_delay: float = 7.0
 
 
 @dataclass(frozen=True)
