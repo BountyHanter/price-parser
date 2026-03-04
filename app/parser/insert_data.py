@@ -51,6 +51,9 @@ def write_prices():
                     wb.save(OUTPUT_PATH)
                     counter = 0
 
+        if OUTPUT_PATH.exists():
+            OUTPUT_PATH.unlink()
+
         wb.save(OUTPUT_PATH)
         log.info(f"[WRITE] Готово. Записано ячеек: {total_written}")
 
