@@ -140,7 +140,7 @@ async def start_parser(db: SessionDependence):
     log_path = STORAGE_DIR / "parser_process.log"
 
     # --- 3) запуск процесса ---
-    cmd = [sys.executable, "-m", "app.parser.runner"]
+    cmd = [sys.executable, "-u", "-m", "app.parser.runner"]
 
     with log_path.open("ab") as log_file:
         subprocess.Popen(
@@ -153,6 +153,7 @@ async def start_parser(db: SessionDependence):
         )
 
     return {"status": "started"}
+
 @app.get("/parser/status", response_model=List[ParseJobSchema])
 async def status_parser(db: SessionDependence):
     jobs = await get_all_jobs(db)

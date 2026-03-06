@@ -50,7 +50,7 @@ fi
 
 if [ ! -x "$PROJECT_DIR/.venv/bin/python" ]; then
   echo "Создаём виртуальное окружение..."
-  run_as_user "python -m venv '$PROJECT_DIR/.venv'"
+  run_as_user "python3 -m venv '$PROJECT_DIR/.venv'"
 fi
 
 echo "Устанавливаем зависимости..."
@@ -74,7 +74,7 @@ Environment=PORT=${PORT}
 Environment=PYTHONUNBUFFERED=1
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
-ExecStart=/var/www/Denis/price-parser/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
+ExecStart=/var/www/price-parser/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port ${PORT}
 Restart=always
 RestartSec=3
 
