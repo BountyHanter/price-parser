@@ -80,6 +80,8 @@ class SdvorProcessor(BaseProcessor):
                 f"[{task.site_name}] "
                 f"row={task.row} "
                 f"price_cell={task.price_cell} "
+                f"url={task.url} "
+                f"http_status={status} "
                 f"price={price} "
                 f"error={error}"
             )
