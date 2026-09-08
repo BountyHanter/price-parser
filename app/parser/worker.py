@@ -101,9 +101,18 @@ async def site_worker(site_name: str, tasks, memory: dict[str, Any], cfg: Parser
                 last_request_time = time.monotonic()
         except Exception as e:
             failed = True
-            async with new_session() as db:
-                await set_error(db, site_name=site_name, message=str(e) or type(e).__name__)
-                await db.commit()
+            error_message = str(e) or type(e).__name__
+            # Не ограничиваемся записью ошибки в БД: без traceback невозможно
+            # понять, почему воркер завершился на сервере.
+            log.exception(f"[{site_name}] worker crashed: {error_message}")
+            try:
+                async with new_session() as db:
+                    await set_error(db, site_name=site_name, message=error_message)
+                    await db.commit()
+            except Exception:
+                # Например, SQLite может быть недоступна именно в момент
+                # обработки исходной ошибки. Сохраняем и эту причину в лог.
+                log.exception(f"[{site_name}] failed to save worker error to database")
         finally:
             log.info(f"[DONE] {site_name}")
             async with new_session() as db:

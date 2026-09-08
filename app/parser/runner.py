@@ -1,5 +1,8 @@
 import asyncio
+import faulthandler
 import json
+import signal
+import sys
 from collections import defaultdict
 from typing import Any
 
@@ -13,6 +16,17 @@ from app.parser.memory_form import build_memory_structure
 from app.parser.paths import JSON_PATH, XLSX_PATH
 from app.parser.worker import site_worker
 from app.utils.database.status import set_status, set_error
+
+
+def _termination_handler(signum, _frame):
+    """Сохраняет причину штатного завершения от systemd в stderr парсера."""
+    signal_name = signal.Signals(signum).name
+    print(
+        f"[FATAL] Parser received {signal_name} ({signum}); process is terminating",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise SystemExit(128 + signum)
 
 
 def group_tasks_by_site(tasks):
@@ -64,12 +78,19 @@ async def main():
                 await set_error(db, error_message)
                 await db.commit()
 
-    except Exception as e:
-        log.exception(f"runner exception - {e}")
+    except BaseException as e:
+        # BaseException покрывает SystemExit, возникающий при SIGTERM.
+        # Обычный except Exception такой случай не логировал.
+        log.exception(f"runner fatal exception - {e or type(e).__name__}")
         raise
 
 
 
 
 if __name__ == "__main__":
+    # Выводит traceback при фатальных ошибках интерпретатора (например, segfault)
+    # в stderr, который main.py направляет в storage/parser_process.log.
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+    signal.signal(signal.SIGTERM, _termination_handler)
+    signal.signal(signal.SIGINT, _termination_handler)
     asyncio.run(main())
