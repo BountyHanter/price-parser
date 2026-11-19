@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
 from app.parser.memory_form import build_memory_structure
-from app.parser.schema import Task, SITES
+from app.parser.schema import SITES, Task, resolve_price_columns
 
 
 def _is_url(value) -> bool:
@@ -35,6 +35,7 @@ def read_tasks_from_excel(
 
     wb = load_workbook(filename=str(xlsx_path), data_only=True)
     ws = wb[sheet_name] if sheet_name else wb.worksheets[0]
+    price_columns, _ = resolve_price_columns(ws)
 
     tasks: list[Task] = []
 
@@ -42,7 +43,7 @@ def read_tasks_from_excel(
 
         for site_name, cols in SITES.items():
             url_col = cols["url_col"]
-            price_col = cols["price_col"]
+            price_col = price_columns[site_name]
 
 
             val = ws.cell(row=row, column=url_col).value

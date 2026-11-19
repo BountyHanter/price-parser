@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.fast_api_logger import log
 from app.parser.paths import JSON_PATH, XLSX_PATH, OUTPUT_PATH
+from app.parser.schema import CSK_SITE, resolve_price_columns
 
 # сколько изменений делать перед промежуточным сохранением
 BATCH_SIZE = 1000
@@ -23,7 +24,8 @@ def write_prices():
         data = load_data(JSON_PATH)
 
         wb = load_workbook(XLSX_PATH)
-        ws = wb.active
+        ws = wb.worksheets[0]
+        price_columns, wholesale_col = resolve_price_columns(ws)
 
         rows = data["rows"]
 
@@ -35,21 +37,24 @@ def write_prices():
             sites = row_data.get("sites", {})
 
             for site_name, site_data in sites.items():
-                price = site_data.get("price")
-                price_col = site_data.get("price_col")
+                price_col = price_columns.get(site_name, site_data.get("price_col"))
+                prices = [(price_col, site_data.get("price"))]
+                if site_name == CSK_SITE and wholesale_col is not None:
+                    prices.append((wholesale_col, site_data.get("wholesale_price")))
 
-                if price is None or price_col is None:
-                    continue
+                for price_col, price in prices:
+                    if price is None or price_col is None:
+                        continue
 
-                ws.cell(row=row_index, column=price_col, value=price)
+                    ws.cell(row=row_index, column=price_col, value=price)
 
-                counter += 1
-                total_written += 1
+                    counter += 1
+                    total_written += 1
 
-                if counter >= BATCH_SIZE:
-                    log.info(f"[WRITE] batch save ({total_written} cells)")
-                    wb.save(OUTPUT_PATH)
-                    counter = 0
+                    if counter >= BATCH_SIZE:
+                        log.info(f"[WRITE] batch save ({total_written} cells)")
+                        wb.save(OUTPUT_PATH)
+                        counter = 0
 
         if OUTPUT_PATH.exists():
             OUTPUT_PATH.unlink()

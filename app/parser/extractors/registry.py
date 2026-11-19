@@ -1,3 +1,5 @@
+from app.parser.schema import CSK_SITE
+
 from . import (
     csk,
     krepezh159,
@@ -9,7 +11,7 @@ from . import (
 )
 
 REGISTRY = {
-    "ЦСК": csk,
+    CSK_SITE: csk,
     "Крепеж 159": krepezh159,
     "УралМастер": uralmaster,
     "ЭТМ": etm,

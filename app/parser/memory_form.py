@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 from openpyxl import load_workbook
 
-from app.parser.schema import Task
+from app.parser.schema import CSK_SITE, Task
 
 NAME_COL = 2  # Наименование (вторая колонка)
 
@@ -31,5 +31,7 @@ def build_memory_structure(xlsx_path: str | Path, tasks: list[Task]) -> dict[str
             "price": None,
             "error": None,
         }
+        if t.site_name == CSK_SITE:
+            item["sites"][t.site_name]["wholesale_price"] = None
 
     return {"rows": rows}

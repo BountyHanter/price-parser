@@ -2,7 +2,7 @@ from typing import Any
 import httpx
 
 from app.fast_api_logger import log
-from app.parser.schema import Task
+from app.parser.schema import CSK_SITE, Task
 from app.parser.processors.base import BaseProcessor
 
 class HtmlProcessor(BaseProcessor):
@@ -12,6 +12,7 @@ class HtmlProcessor(BaseProcessor):
     async def process(self, client: httpx.AsyncClient, task: Task, memory: dict[str, Any]) -> int:
         status = None
         price = None
+        wholesale_price = None
         error = None
 
         try:
@@ -39,8 +40,11 @@ class HtmlProcessor(BaseProcessor):
 
             # ---- извлекаем цену только при нормальном ответе ----
             if error is None:
-                price = self.extractor.extract_price(html)
-                if price is None:
+                if task.site_name == CSK_SITE:
+                    price, wholesale_price = self.extractor.extract_prices(html)
+                else:
+                    price = self.extractor.extract_price(html)
+                if price is None and wholesale_price is None:
                     error = "price_not_found"
 
         except Exception as e:
@@ -51,6 +55,8 @@ class HtmlProcessor(BaseProcessor):
         row_data = memory["rows"][str(task.row)]
         site_data = row_data["sites"][task.site_name]
         site_data["price"] = price
+        if task.site_name == CSK_SITE:
+            site_data["wholesale_price"] = wholesale_price
         site_data["error"] = error
 
         if error is not None:
